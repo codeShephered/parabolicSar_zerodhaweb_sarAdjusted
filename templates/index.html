@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>SAR Options Trading System</title>
+<style>
+:root{
+  --bg:#0b0d17;--card:#111827;--card2:#1a2035;--border:#1f2d4a;
+  --green:#22c55e;--red:#ef4444;--amber:#f59e0b;--blue:#3b82f6;
+  --purple:#8b5cf6;--cyan:#06b6d4;--text:#e2e8f0;--muted:#6b7280;
+  --green-bg:#052e16;--red-bg:#2d0a0a;--amber-bg:#2d1a00;
+  --green-border:#166534;--red-border:#7f1d1d;--amber-border:#92400e;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --radius:10px;--radius-sm:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;min-height:100vh}
+a{color:var(--blue);text-decoration:none}
+
+/* Layout */
+.header{background:var(--card);border-bottom:1px solid var(--border);padding:12px 24px;
+display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.logo{font-size:16px;font-weight:700;display:flex;align-items:center;gap:10px}
+.logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--blue),var(--purple));
+border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.logo-text{line-height:1.2}
+.logo-text small{display:block;font-size:10px;color:var(--muted);font-weight:400}
+.hright{display:flex;align-items:center;gap:10px}
+
+.main{padding:20px 24px;display:grid;gap:16px;max-width:1600px;margin:0 auto}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px}
+.card-title{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;
+letter-spacing:.07em;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+
+/* Buttons */
+.btn{padding:7px 16px;border-radius:var(--radius-sm);border:none;cursor:pointer;
+font-size:13px;font-weight:600;transition:all .15s;display:inline-flex;align-items:center;gap:5px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-green{background:var(--green);color:#fff}
+.btn-green:hover:not(:disabled){background:#16a34a}
+.btn-red{background:var(--red);color:#fff}
+.btn-red:hover:not(:disabled){background:#dc2626}
+.btn-blue{background:var(--blue);color:#fff}
+.btn-blue:hover:not(:disabled){background:#2563eb}
+.btn-amber{background:var(--amber);color:#000}
+.btn-amber:hover:not(:disabled){background:#d97706}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
+.btn-ghost:hover:not(:disabled){background:var(--card2)}
+.btn-sm{padding:5px 12px;font-size:12px}
+.btn-xs{padding:3px 9px;font-size:11px}
+
+/* Badges */
+.badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.03em}
+.badge-paper{background:#0f2b4a;color:var(--blue)}
+.badge-live{background:var(--green-bg);color:var(--green)}
+.badge-ok{background:var(--green-bg);color:var(--green)}
+.badge-err{background:var(--red-bg);color:var(--red)}
+.badge-run{background:#1a2a0a;color:#86efac;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+
+/* Mode toggle */
+.mode-toggle{display:flex;background:var(--card2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px;gap:3px}
+.mode-btn{padding:5px 14px;border-radius:4px;border:none;cursor:pointer;font-size:12px;
+font-weight:600;background:transparent;color:var(--muted);transition:.15s}
+.mode-btn.active-paper{background:var(--blue);color:#fff}
+.mode-btn.active-live{background:var(--green);color:#fff}
+
+/* Status strip */
+.status-strip{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+.stat-pill{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot-green{background:var(--green)} .dot-red{background:var(--red)}
+.dot-amber{background:var(--amber)} .dot-muted{background:var(--muted)}
+
+/* Instrument cards */
+.inst-card{border-radius:var(--radius);padding:16px 18px;border:1.5px solid var(--border);
+background:var(--card);transition:border-color .3s}
+.inst-card.bull{border-color:var(--green-border);background:#061a0f}
+.inst-card.bear{border-color:var(--red-border);background:#17060a}
+.inst-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.inst-name{font-size:15px;font-weight:700}
+.inst-sub{font-size:10px;color:var(--muted);margin-top:1px}
+.inst-ltp{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.inst-ltp.up{color:var(--green)} .inst-ltp.dn{color:var(--red)} .inst-ltp.neu{color:var(--text)}
+.inst-chg{font-size:12px;margin-top:2px;font-variant-numeric:tabular-nums}
+.inst-ohlc{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:10px;
+padding:8px 10px;background:rgba(255,255,255,.03);border-radius:var(--radius-sm)}
+.ohlc-item{font-size:11px;color:var(--muted)}
+.ohlc-item span{color:var(--text);font-weight:500;font-variant-numeric:tabular-nums}
+
+/* SAR box */
+.sar-box{margin-top:10px;padding:10px;border-radius:var(--radius-sm);
+border:1px solid var(--border);background:rgba(255,255,255,.02)}
+.sar-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;font-size:12px}
+.sar-row:last-child{margin-bottom:0}
+.sar-lbl{color:var(--muted)}
+.sar-val{font-weight:600;font-variant-numeric:tabular-nums}
+.sar-bull-txt{color:var(--green)} .sar-bear-txt{color:var(--red)}
+
+/* Signal badge */
+.sig-badge{margin-top:10px;padding:7px 10px;border-radius:var(--radius-sm);font-size:12px;font-weight:600}
+.sig-bull{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.sig-bear{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.sig-exit{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.sig-none{background:var(--card2);color:var(--muted);border:1px solid var(--border)}
+
+/* Premium tag */
+.est-tag{font-size:9px;background:var(--amber-bg);color:var(--amber);border-radius:3px;
+padding:1px 5px;margin-left:5px;border:1px solid var(--amber-border)}
+
+/* Stats boxes */
+.stat-box{text-align:center;padding:12px 10px;background:var(--card2);border-radius:var(--radius-sm)}
+.stat-num{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+.stat-lbl{font-size:10px;color:var(--muted);margin-top:3px}
+
+/* Tables */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{padding:8px 12px;text-align:left;color:var(--muted);font-size:10px;font-weight:600;
+letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)}
+td{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.04)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+.td-num{font-variant-numeric:tabular-nums}
+.t-up{color:var(--green)} .t-dn{color:var(--red)} .t-am{color:var(--amber)}
+.type-ce{background:#0f2b4a;color:var(--blue);padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700}
+.type-pe{background:var(--red-bg);color:var(--red);padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700}
+.empty-row td{color:var(--muted);text-align:center;padding:20px}
+
+/* Candle preview */
+.candle-live{display:flex;gap:12px;flex-wrap:wrap;margin-top:2px}
+.cl-item{font-size:11px;color:var(--muted)}
+.cl-item span{color:var(--text);font-weight:500;font-variant-numeric:tabular-nums}
+
+/* Log */
+.log-filters{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.log-filters button{padding:3px 10px;border-radius:4px;border:1px solid var(--border);
+background:transparent;color:var(--muted);font-size:11px;cursor:pointer}
+.log-filters button.active{background:var(--blue);border-color:var(--blue);color:#fff}
+.log-search{background:var(--card2);border:1px solid var(--border);border-radius:4px;
+padding:3px 10px;color:var(--text);font-size:11px;width:180px;margin-left:auto}
+.log-search:focus{outline:none;border-color:var(--blue)}
+#log-box{height:240px;overflow-y:auto;background:var(--card2);border-radius:var(--radius-sm);
+padding:8px;font-family:monospace;font-size:11px;border:1px solid var(--border);line-height:1.6}
+.le{padding:1px 3px}
+.le-INFO{color:#94a3b8} .le-DEBUG{color:var(--muted)}
+.le-WARNING{color:var(--amber)} .le-ERROR{color:var(--red)}
+.le-ts{color:#475569;margin-right:6px} .le-mod{color:var(--purple);margin-right:6px}
+
+/* Divider */
+hr{border:none;border-top:1px solid var(--border);margin:4px 0}
+
+/* Form */
+.form-row{display:flex;gap:8px;align-items:center}
+.inp{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius-sm);
+padding:8px 12px;color:var(--text);font-size:13px;flex:1;min-width:0}
+.inp:focus{outline:none;border-color:var(--blue)}
+.inp-sm{padding:6px 10px;font-size:12px}
+label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
+
+/* Tooltip */
+.tooltip{position:relative;cursor:help}
+.tooltip:after{content:attr(data-tip);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);
+background:#1e2d4a;border:1px solid var(--border);border-radius:4px;padding:4px 8px;
+font-size:10px;white-space:nowrap;pointer-events:none;opacity:0;transition:.2s;z-index:999}
+.tooltip:hover:after{opacity:1}
+
+/* Expiry info */
+.expiry-chip{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;
+font-weight:600;background:var(--card2);border:1px solid var(--border);color:var(--muted)}
+
+@media(max-width:900px){
+  .grid2,.grid3,.grid4{grid-template-columns:1fr}
+  .main{padding:12px}
+  .inst-ltp{font-size:22px}
+}
+</style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-icon">📈</div>
+    <div class="logo-text">
+      SAR Options System
+      <small>NIFTY &amp; BANKNIFTY Intraday</small>
+    </div>
+  </div>
+  <div class="hright">
+    <span id="mode-badge" class="badge badge-paper">PAPER</span>
+    <span id="conn-badge" class="badge badge-err">DISCONNECTED</span>
+    <button class="btn btn-green" id="btn-start" onclick="apiStart()">▶ Start</button>
+    <button class="btn btn-red"   id="btn-stop"  onclick="apiStop()" disabled>■ Stop</button>
+  </div>
+</header>
+
+<div class="main">
+
+<!-- ── Login & Mode ──────────────────────────────────────────────────────── -->
+<div class="card">
+  <div class="card-title">Zerodha Connection &amp; Trading Mode</div>
+  <div class="grid2" style="gap:12px">
+
+    <!-- OAuth Login -->
+    <div>
+      <label>Option A — OAuth Login (Recommended)</label>
+      <div style="margin-bottom:8px">
+        <div style="margin-bottom:4px"><label>API Key</label>
+          <input id="inp-apikey" class="inp inp-sm" placeholder="Your Zerodha API key"></div>
+        <button class="btn btn-blue" style="width:100%" onclick="oauthLogin()">
+          🔑 Login with Zerodha
+        </button>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">
+          Redirects to Zerodha → returns here with token automatically.
+        </div>
+      </div>
+    </div>
+
+    <!-- Manual Token -->
+    <div>
+      <label>Option B — Paste Today's Access Token</label>
+      <div style="margin-bottom:4px"><label>Access Token</label>
+        <input id="inp-token" class="inp inp-sm" type="text" placeholder="Paste today's access_token…"></div>
+      <button class="btn btn-amber btn-sm" style="width:100%" onclick="setToken()">Apply Token</button>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">
+        Get token from <a href="https://kite.zerodha.com" target="_blank">kite.zerodha.com</a> → My Account → API.
+      </div>
+    </div>
+  </div>
+
+  <hr style="margin:12px 0">
+
+  <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Trading Mode</div>
+      <div class="mode-toggle">
+        <button class="mode-btn active-paper" id="btn-paper" onclick="setMode('paper')">📝 Paper</button>
+        <button class="mode-btn" id="btn-live" onclick="setMode('live')">💰 Live</button>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted)">
+      <b style="color:var(--blue)">Paper:</b> Simulate trades, no real orders placed.<br>
+      <b style="color:var(--green)">Live:</b> Real orders sent to Zerodha NFO.
+    </div>
+    <div style="margin-left:auto;text-align:right">
+      <div style="font-size:11px;color:var(--muted)">Contract Expiry</div>
+      <div style="margin-top:4px;font-size:12px">
+        NIFTY <span class="expiry-chip" id="nifty-expiry">–</span>
+        &nbsp;BANKNIFTY <span class="expiry-chip" id="bnk-expiry">–</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Status ─────────────────────────────────────────────────────────────── -->
+<div class="card" style="padding:12px 18px">
+  <div class="status-strip">
+    <div class="stat-pill">
+      <div class="dot" id="run-dot" style="background:var(--muted)"></div>
+      <span id="run-txt">Stopped</span>
+    </div>
+    <div class="stat-pill">
+      <div class="dot" id="con-dot" style="background:var(--muted)"></div>
+      <span id="con-txt">Zerodha: –</span>
+    </div>
+    <div class="stat-pill">
+      <div class="dot dot-amber"></div>
+      <span id="tick-txt">Last tick: –</span>
+    </div>
+    <div class="stat-pill" style="margin-left:auto;font-size:11px">
+      SAR: start=0.02 | inc=0.02 | max=0.2 &nbsp;|&nbsp; 3-candle window &nbsp;|&nbsp; No volume gate
+    </div>
+  </div>
+</div>
+
+<!-- ── Instrument Cards ───────────────────────────────────────────────────── -->
+<div class="grid2">
+
+  <!-- NIFTY -->
+  <div class="inst-card" id="card-NIFTY">
+    <div class="inst-header">
+      <div>
+        <div class="inst-name">NIFTY 50</div>
+        <div class="inst-sub">Weekly contract &nbsp;<span id="sig-opt-NIFTY"></span></div>
+      </div>
+      <div id="sig-NIFTY" class="sig-badge sig-none" style="text-align:right;min-width:110px">No signal</div>
+    </div>
+    <div class="inst-ltp neu" id="ltp-NIFTY">–</div>
+    <div class="inst-chg" id="chg-NIFTY" style="color:var(--muted)">–</div>
+    <div class="inst-ohlc">
+      <div class="ohlc-item">O: <span id="o-NIFTY">–</span></div>
+      <div class="ohlc-item">H: <span id="h-NIFTY">–</span></div>
+      <div class="ohlc-item">L: <span id="l-NIFTY">–</span></div>
+      <div class="ohlc-item">Prev: <span id="pc-NIFTY">–</span></div>
+    </div>
+    <div class="sar-box">
+      <div class="sar-row">
+        <span class="sar-lbl">SAR Value</span>
+        <span class="sar-val" id="sar-val-NIFTY">–</span>
+      </div>
+      <div class="sar-row">
+        <span class="sar-lbl">Direction</span>
+        <span class="sar-val" id="sar-dir-NIFTY">–</span>
+      </div>
+      <div class="sar-row">
+        <span class="sar-lbl">AF / EP</span>
+        <span class="sar-val" id="sar-af-NIFTY">–</span>
+      </div>
+    </div>
+    <div class="candle-live" id="candle-NIFTY" style="margin-top:8px"></div>
+  </div>
+
+  <!-- BANKNIFTY -->
+  <div class="inst-card" id="card-BANKNIFTY">
+    <div class="inst-header">
+      <div>
+        <div class="inst-name">BANKNIFTY</div>
+        <div class="inst-sub">Monthly contract &nbsp;<span id="sig-opt-BANKNIFTY"></span></div>
+      </div>
+      <div id="sig-BANKNIFTY" class="sig-badge sig-none" style="text-align:right;min-width:110px">No signal</div>
+    </div>
+    <div class="inst-ltp neu" id="ltp-BANKNIFTY">–</div>
+    <div class="inst-chg" id="chg-BANKNIFTY" style="color:var(--muted)">–</div>
+    <div class="inst-ohlc">
+      <div class="ohlc-item">O: <span id="o-BANKNIFTY">–</span></div>
+      <div class="ohlc-item">H: <span id="h-BANKNIFTY">–</span></div>
+      <div class="ohlc-item">L: <span id="l-BANKNIFTY">–</span></div>
+      <div class="ohlc-item">Prev: <span id="pc-BANKNIFTY">–</span></div>
+    </div>
+    <div class="sar-box">
+      <div class="sar-row">
+        <span class="sar-lbl">SAR Value</span>
+        <span class="sar-val" id="sar-val-BANKNIFTY">–</span>
+      </div>
+      <div class="sar-row">
+        <span class="sar-lbl">Direction</span>
+        <span class="sar-val" id="sar-dir-BANKNIFTY">–</span>
+      </div>
+      <div class="sar-row">
+        <span class="sar-lbl">AF / EP</span>
+        <span class="sar-val" id="sar-af-BANKNIFTY">–</span>
+      </div>
+    </div>
+    <div class="candle-live" id="candle-BANKNIFTY" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<!-- ── Performance Stats ──────────────────────────────────────────────────── -->
+<div class="card">
+  <div class="card-title">Today's Performance</div>
+  <div class="grid4">
+    <div class="stat-box">
+      <div class="stat-num" id="st-total">0</div>
+      <div class="stat-lbl">Total Trades</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num t-up" id="st-wins">0</div>
+      <div class="stat-lbl">Wins</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num t-dn" id="st-losses">0</div>
+      <div class="stat-lbl">Losses</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num" id="st-pnl">₹0</div>
+      <div class="stat-lbl">Net P&amp;L</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Open Positions ─────────────────────────────────────────────────────── -->
+<div class="card">
+  <div class="card-title">
+    Open Positions
+    <span id="pos-badge" style="font-size:11px;background:var(--card2);
+    padding:2px 8px;border-radius:10px;border:1px solid var(--border)">0</span>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Instrument</th><th>Type</th><th>Strike</th><th>Expiry</th>
+          <th>Pattern</th><th>Entry ₹</th><th>Current ₹</th>
+          <th>SAR SL</th><th>P&amp;L</th><th>P&amp;L%</th>
+          <th>Entry Time</th>
+        </tr>
+      </thead>
+      <tbody id="pos-body">
+        <tr class="empty-row"><td colspan="11">No open positions</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Closed Trades ──────────────────────────────────────────────────────── -->
+<div class="card">
+  <div class="card-title">Recent Closed Trades</div>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Instrument</th><th>Type</th><th>Strike</th><th>Expiry</th>
+          <th>Pattern</th><th>Entry ₹</th><th>Exit ₹</th>
+          <th>P&amp;L</th><th>Exit Reason</th>
+          <th>Entry</th><th>Exit</th>
+        </tr>
+      </thead>
+      <tbody id="hist-body">
+        <tr class="empty-row"><td colspan="11">No trades yet</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── System Log ─────────────────────────────────────────────────────────── -->
+<div class="card">
+  <div class="card-title">
+    System Log
+    <a href="/api/logs" style="font-size:11px">↓ Download</a>
+  </div>
+  <div class="log-filters">
+    <button class="active" onclick="setLogFilter('ALL',this)">ALL</button>
+    <button onclick="setLogFilter('INFO',this)">INFO</button>
+    <button onclick="setLogFilter('WARNING',this)">WARN</button>
+    <button onclick="setLogFilter('ERROR',this)">ERROR</button>
+    <input class="log-search" id="log-search" placeholder="Search…" oninput="renderLog()">
+  </div>
+  <div id="log-box"></div>
+</div>
+
+</div><!-- .main -->
+
+<script>
+/* ── State ────────────────────────────────────────────────────────────────── */
+let logs=[], logFilter='ALL', _running=false, _mode='paper';
+
+/* ── SSE live log ─────────────────────────────────────────────────────────── */
+const es=new EventSource('/stream');
+es.onmessage=e=>{
+  try{logs.push(JSON.parse(e.data));if(logs.length>2000)logs.shift();renderLog()}catch{}
+};
+
+/* ── Poll status every 5 s ───────────────────────────────────────────────── */
+function poll(){fetch('/api/status').then(r=>r.json()).then(paint).catch(()=>{})}
+setInterval(poll,5000); poll();
+
+function fmt(n,d=2){return n==null?'–':Number(n).toLocaleString('en-IN',{minimumFractionDigits:d,maximumFractionDigits:d})}
+function fmtPremium(v,est){return '₹'+fmt(v)+(est?'<span class="est-tag">Est</span>':'')}
+
+function paint(d){
+  _mode=d.mode||'paper'; _running=d.running||false;
+
+  // Header badges
+  document.getElementById('mode-badge').textContent=_mode.toUpperCase();
+  document.getElementById('mode-badge').className='badge badge-'+_mode;
+  const conn=!!d.connected;
+  document.getElementById('conn-badge').textContent=conn?'CONNECTED ✓':'DISCONNECTED';
+  document.getElementById('conn-badge').className='badge '+(conn?'badge-ok':'badge-err');
+
+  // Start/Stop buttons
+  document.getElementById('btn-start').disabled=_running;
+  document.getElementById('btn-stop').disabled=!_running;
+
+  // Status strip
+  document.getElementById('run-dot').style.background=_running?'var(--green)':'var(--muted)';
+  document.getElementById('run-dot').style.animation=_running?'pulse 2s infinite':'none';
+  document.getElementById('run-txt').textContent=_running?'Running':'Stopped';
+  document.getElementById('con-dot').style.background=conn?'var(--green)':'var(--red)';
+  document.getElementById('con-txt').textContent='Zerodha: '+(conn?'Connected':'Not connected');
+  document.getElementById('tick-txt').textContent='Last tick: '+(d.last_tick||'–');
+
+  // Mode buttons
+  document.getElementById('btn-paper').className='mode-btn'+(_mode==='paper'?' active-paper':'');
+  document.getElementById('btn-live').className='mode-btn'+(_mode==='live'?' active-live':'');
+
+  // Expiry
+  const exp=d.expiry||{};
+  document.getElementById('nifty-expiry').textContent=exp.NIFTY||'–';
+  document.getElementById('bnk-expiry').textContent=exp.BANKNIFTY||'–';
+
+  // Instruments
+  ['NIFTY','BANKNIFTY'].forEach(inst=>{
+    const q=(d.market||{})[inst]||{};
+    const sar=(d.sar||{})[inst]||{};
+    const sig=(d.signals||{})[inst]||{};
+    const cv=(d.candle||{})[inst]||{};
+
+    const ltp=q.last_price;
+    const chg=q.change;
+    const pchg=q.pchange;
+
+    const ltpEl=document.getElementById('ltp-'+inst);
+    if(ltp!=null){
+      ltpEl.textContent='₹'+fmt(ltp,2);
+      ltpEl.className='inst-ltp '+(chg>0?'up':chg<0?'dn':'neu');
+    }
+
+    const chgEl=document.getElementById('chg-'+inst);
+    if(chg!=null){
+      chgEl.textContent=(chg>=0?'+':'')+fmt(chg,2)+' ('+(pchg>=0?'+':'')+fmt(pchg,2)+'%)';
+      chgEl.style.color=chg>=0?'var(--green)':'var(--red)';
+    }
+
+    const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v?('₹'+fmt(v)):'-';};
+    set('o-'+inst, q.open);
+    set('h-'+inst, q.high);
+    set('l-'+inst, q.low);
+    set('pc-'+inst,q.prev_close);
+
+    // SAR
+    if(sar.value!=null){
+      document.getElementById('sar-val-'+inst).textContent='₹'+fmt(sar.value,2);
+      const dirEl=document.getElementById('sar-dir-'+inst);
+      dirEl.textContent=sar.bullish?'▲ BULLISH':'▼ BEARISH';
+      dirEl.className='sar-val '+(sar.bullish?'sar-bull-txt':'sar-bear-txt');
+      document.getElementById('sar-af-'+inst).textContent=
+        'AF '+sar.af+' / EP ₹'+fmt(sar.ep,2);
+    }
+
+    // Instrument card colour
+    const card=document.getElementById('card-'+inst);
+    if(sar.bullish===true)card.className='inst-card bull';
+    else if(sar.bullish===false)card.className='inst-card bear';
+    else card.className='inst-card';
+
+    // Signal badge
+    const sigEl=document.getElementById('sig-'+inst);
+    const optEl=document.getElementById('sig-opt-'+inst);
+    if(sig.type==='entry'){
+      const bull=sig.direction==='bullish';
+      sigEl.className='sig-badge '+(bull?'sig-bull':'sig-bear');
+      sigEl.innerHTML=(bull?'▲ CE ':'▼ PE ')+(sig.pattern||'');
+      if(optEl)optEl.innerHTML=
+        '<span class="'+(bull?'type-ce':'type-pe')+'">'+sig.opt_type+'</span>'+
+        ' '+fmt(sig.strike,0)+' | SAR_SL ₹'+fmt(sig.sar_sl,2)+
+        (sig.estimated?' <span class="est-tag">Est</span>':'');
+    } else if(sig.type==='exit'){
+      sigEl.className='sig-badge sig-exit';
+      sigEl.innerHTML='⬛ EXIT';
+      if(optEl)optEl.textContent=sig.reason||'';
+    } else {
+      sigEl.className='sig-badge sig-none';
+      sigEl.textContent='No signal';
+      if(optEl)optEl.textContent='';
+    }
+
+    // Live candle
+    const cvEl=document.getElementById('candle-'+inst);
+    if(cvEl&&cv.time){
+      cvEl.innerHTML=
+        '<div class="cl-item">5m: <span>'+cv.time+'</span></div>'+
+        '<div class="cl-item">O <span>'+fmt(cv.open)+'</span></div>'+
+        '<div class="cl-item">H <span style="color:var(--green)">'+fmt(cv.high)+'</span></div>'+
+        '<div class="cl-item">L <span style="color:var(--red)">'+fmt(cv.low)+'</span></div>'+
+        '<div class="cl-item">C <span style="color:'+(cv.bull?'var(--green)':'var(--red)')+'">'+fmt(cv.close)+'</span></div>';
+    }
+  });
+
+  // Stats
+  const st=d.stats||{};
+  document.getElementById('st-total').textContent=st.total||0;
+  document.getElementById('st-wins').textContent=st.wins||0;
+  document.getElementById('st-losses').textContent=st.losses||0;
+  const pnl=st.total_pnl||0;
+  const pEl=document.getElementById('st-pnl');
+  pEl.textContent=(pnl>=0?'+':'')+'₹'+fmt(Math.abs(pnl),2);
+  pEl.className='stat-num '+(pnl>=0?'t-up':'t-dn');
+
+  // Positions
+  const pos=d.positions||[];
+  document.getElementById('pos-badge').textContent=pos.length;
+  const pb=document.getElementById('pos-body');
+  if(pos.length===0){
+    pb.innerHTML='<tr class="empty-row"><td colspan="11">No open positions</td></tr>';
+  } else {
+    pb.innerHTML=pos.map(p=>{
+      const pnl=p.pnl||0;
+      return `<tr>
+        <td><b>${p.instrument}</b></td>
+        <td><span class="type-${(p.option_type||'').toLowerCase()}">${p.option_type}</span></td>
+        <td class="td-num">₹${fmt(p.strike,0)}</td>
+        <td>${p.expiry||'–'}</td>
+        <td>${p.pattern||'–'}</td>
+        <td class="td-num">${fmtPremium(p.entry_premium,p.is_estimated)}</td>
+        <td class="td-num">${fmtPremium(p.current_premium,p.is_estimated)}</td>
+        <td class="td-num t-am">₹${fmt(p.sar_sl,2)}</td>
+        <td class="td-num ${pnl>=0?'t-up':'t-dn'}">${pnl>=0?'▲':'▼'} ₹${fmt(Math.abs(pnl),2)}</td>
+        <td class="td-num ${pnl>=0?'t-up':'t-dn'}">${(p.pnl_pct>=0?'+':'')}${fmt(p.pnl_pct,2)}%</td>
+        <td>${p.entry_time||'–'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // History
+  const hist=(d.history||[]).slice().reverse();
+  const hb=document.getElementById('hist-body');
+  if(hist.length===0){
+    hb.innerHTML='<tr class="empty-row"><td colspan="11">No trades yet</td></tr>';
+  } else {
+    hb.innerHTML=hist.map(h=>{
+      const pnl=h.final_pnl||0;
+      const reason=(h.exit_reason||'').substring(0,40)+(h.exit_reason&&h.exit_reason.length>40?'…':'');
+      return `<tr>
+        <td><b>${h.instrument}</b></td>
+        <td><span class="type-${(h.option_type||'').toLowerCase()}">${h.option_type}</span></td>
+        <td class="td-num">₹${fmt(h.strike,0)}</td>
+        <td>${h.expiry||'–'}</td>
+        <td>${h.pattern||'–'}</td>
+        <td class="td-num">${fmtPremium(h.entry_premium,h.is_estimated)}</td>
+        <td class="td-num">₹${fmt(h.current_premium,2)}</td>
+        <td class="td-num ${pnl>=0?'t-up':'t-dn'}">${pnl>=0?'▲':'▼'} ₹${fmt(Math.abs(pnl),2)}</td>
+        <td style="font-size:11px;color:var(--muted)">${reason}</td>
+        <td>${h.entry_time||'–'}</td>
+        <td>${h.exit_time||'–'}</td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+/* ── Log ─────────────────────────────────────────────────────────────────── */
+function setLogFilter(level,btn){
+  logFilter=level;
+  document.querySelectorAll('.log-filters button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderLog();
+}
+function renderLog(){
+  const search=(document.getElementById('log-search').value||'').toLowerCase();
+  const box=document.getElementById('log-box');
+  const entries=logs.filter(e=>
+    (logFilter==='ALL'||e.level===logFilter)&&
+    (!search||JSON.stringify(e).toLowerCase().includes(search))
+  ).slice(-300);
+  box.innerHTML=entries.map(e=>
+    `<div class="le le-${e.level}"><span class="le-ts">${e.ts||''}</span>`+
+    `<span class="le-mod">[${e.module||''}]</span>${e.message||''}</div>`
+  ).join('');
+  box.scrollTop=box.scrollHeight;
+}
+
+/* ── Actions ─────────────────────────────────────────────────────────────── */
+function apiStart(){
+  fetch('/api/start',{method:'POST'})
+    .then(r=>r.json())
+    .then(d=>{if(d.error){alert('❌ '+d.error)}else{poll()}})
+    .catch(e=>alert('Error: '+e));
+}
+function apiStop(){
+  fetch('/api/stop',{method:'POST'}).then(()=>poll());
+}
+function setMode(m){
+  if(_running){alert('Stop the system before switching mode');return}
+  fetch('/api/mode',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({mode:m})})
+    .then(r=>r.json())
+    .then(d=>{if(d.error)alert(d.error);else poll()});
+}
+
+function oauthLogin(){
+  const key=(document.getElementById('inp-apikey').value||'').trim();
+  if(!key){alert('Enter your Zerodha API key first.\nGet it from kite.zerodha.com → My Account → API');return}
+  // Store the API key server-side so the callback can use it
+  fetch('/api/save-key',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({api_key:key})})
+    .then(()=>{ window.location.href='/zerodha/login'; })
+    .catch(()=>{ window.location.href='/zerodha/login'; });
+}
+function setToken(){
+  const token=(document.getElementById('inp-token').value||'').trim();
+  const key=(document.getElementById('inp-apikey').value||config_api_key||'').trim();
+  if(!token){alert('Paste an access token first');return}
+  fetch('/api/set-token',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({access_token:token,api_key:key})})
+    .then(r=>r.json())
+    .then(d=>{
+      if(d.status==='connected'){alert('✅ Zerodha connected successfully!')}
+      else{alert('❌ '+(d.message||'Connection failed — check token'))}
+      poll();
+    });
+}
+const config_api_key='';  // placeholder — replaced by Flask if needed
+</script>
+</body>
+</html>
