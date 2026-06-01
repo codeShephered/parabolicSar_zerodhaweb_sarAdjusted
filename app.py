@@ -233,7 +233,13 @@ def _process(instrument: str, price: float) -> None:
     sma20   = sum(c.close for c in hist[-sma_n:]) / sma_n if sma_n else price
     below   = (sma20 - price) / sma20 * 100
     above   = (price - sma20) / sma20 * 100
-    tol     = config.TREND_FILTER_PCT
+
+    # Read filter thresholds — supports both config.py versions:
+    #   Old: TREND_FILTER_PCT = 0.5  (symmetric)
+    #   New: TREND_FILTER_BULLISH_PCT / TREND_FILTER_BEARISH_PCT (asymmetric)
+    _sym   = getattr(config, "TREND_FILTER_PCT",         0.5)
+    _bull  = getattr(config, "TREND_FILTER_BULLISH_PCT", _sym)
+    _bear  = getattr(config, "TREND_FILTER_BEARISH_PCT", _sym)
 
     pattern, direction = pattern_engine.scan(last3)
     if not pattern:
@@ -241,11 +247,11 @@ def _process(instrument: str, price: float) -> None:
         return
 
     # Reject if direction opposes trend (no volume gate — shape + SAR only)
-    if direction == "bullish" and below > tol:
+    if direction == "bullish" and below > _bull:
         logger.debug(f"{instrument}: {pattern} bullish blocked — {below:.1f}% below SMA20")
         state["signals"][instrument] = {"type": "none"}
         return
-    if direction == "bearish" and above > tol:
+    if direction == "bearish" and above > _bear:
         logger.debug(f"{instrument}: {pattern} bearish blocked — {above:.1f}% above SMA20")
         state["signals"][instrument] = {"type": "none"}
         return
