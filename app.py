@@ -54,6 +54,11 @@ _NSE_TOKENS: dict[int, str] = {
 }
 _TOKEN_BY_INST: dict[str, int] = {v: k for k, v in _NSE_TOKENS.items()}
 
+# Market-hours guard used in on_ticks to reject pre/post-market ticks
+from datetime import time as _dtime
+_MARKET_OPEN  = _dtime(9, 15)
+_MARKET_CLOSE = _dtime(15, 30)
+
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 
@@ -323,7 +328,19 @@ def _process(instrument: str, price: float) -> None:
 def _start_ticker(api_key: str, access_token: str) -> None:
     """
     Start the KiteTicker WebSocket subscription for NIFTY and BANKNIFTY.
-    Called once after Zerodha login. KiteTicker auto-reconnects on drops.
+    Called ONLY from api_start (when user clicks Start on the dashboard).
+    NOT called at login time — starting before market hours causes error 1006
+    because Zerodha drops idle pre-market WebSocket connections.
+
+    Fixes applied for error 1006:
+      - connect_timeout=60   : longer handshake window (default 30 was too short
+                               on slow networks / macOS SSL negotiation)
+      - reconnect_max_delay=60: use Zerodha-tested default (not 5 — too aggressive)
+      - reconnect_max_tries=300: maximise retry window for a full trading day
+      - on_close auto-restart : if Zerodha server closes the connection (1006)
+                                and reconnect fails, restart the ticker cleanly
+      - Market-hours guard    : ignore ticks before 09:15 and after 15:30 to
+                                avoid processing stale pre/post-market data
     """
     global _ticker
 
@@ -340,18 +357,24 @@ def _start_ticker(api_key: str, access_token: str) -> None:
     ticker = KiteTicker(
         api_key,
         access_token,
-        reconnect             = True,
-        reconnect_max_tries   = 50,
-        reconnect_max_delay   = 5,
+        reconnect           = True,
+        reconnect_max_tries = 300,   # enough for a full 6.25-hour trading day
+        reconnect_max_delay = 60,    # Zerodha-tested default — do not set below 5
+        connect_timeout     = 60,    # longer window for slow networks + macOS SSL
     )
     tokens = list(_NSE_TOKENS.keys())   # [256265, 260105]
 
     def on_ticks(ws, ticks: list) -> None:
         """
-        Called by KiteTicker on every price update (~100 ms).
-        Routes each tick to _process() for the correct instrument.
+        Receives price ticks from Zerodha WebSocket every ~100 ms.
+        Market-hours guard prevents processing of pre/post-market noise.
         """
         if not state["running"]:
+            return
+
+        # Market-hours guard — ignore ticks outside NSE trading hours
+        now = datetime.now().time()
+        if now < _MARKET_OPEN or now > _MARKET_CLOSE:
             return
 
         state["last_tick"] = datetime.now().strftime("%H:%M:%S")
@@ -368,9 +391,9 @@ def _start_ticker(api_key: str, access_token: str) -> None:
             try:
                 _process(inst, price)
             except Exception as exc:
-                logger.error(f"Error processing {inst} tick: {exc}", exc_info=True)
+                logger.error(f"Tick error {inst}: {exc}", exc_info=True)
 
-        # 3:15 PM square-off check (runs on every tick but is time-gated inside)
+        # 3:15 PM square-off (time-gated inside must_square_off)
         if trade_engine.must_square_off():
             for c in trade_engine.force_close_all():
                 logger.info(
@@ -379,26 +402,51 @@ def _start_ticker(api_key: str, access_token: str) -> None:
                 )
 
     def on_connect(ws, response) -> None:
-        logger.info("KiteTicker WebSocket connected ✓")
+        logger.info("KiteTicker WebSocket connected ✓ — subscribing to NIFTY + BANKNIFTY")
         ws.subscribe(tokens)
-        ws.set_mode(ws.MODE_QUOTE, tokens)   # MODE_QUOTE gives last_price + ohlc
+        ws.set_mode(ws.MODE_QUOTE, tokens)
         state["connected"] = True
 
     def on_reconnect(ws, attempts_count) -> None:
-        logger.warning(f"KiteTicker reconnecting (attempt {attempts_count}) …")
+        logger.warning(f"KiteTicker reconnecting … attempt {attempts_count}")
         state["connected"] = False
 
     def on_noreconnect(ws) -> None:
-        logger.error("KiteTicker: max reconnect attempts reached — restart the system")
+        """
+        All reconnect attempts exhausted.
+        Try a clean restart before giving up entirely.
+        """
+        logger.error(
+            "KiteTicker: all reconnect attempts exhausted.\n"
+            "  Attempting a clean ticker restart …"
+        )
         state["connected"] = False
-        state["running"]   = False
+        if state["running"] and config.ZERODHA_ACCESS_TOKEN:
+            import threading as _t
+            _t.Timer(5.0, _start_ticker,
+                     args=(config.ZERODHA_API_KEY,
+                           config.ZERODHA_ACCESS_TOKEN)).start()
+        else:
+            state["running"] = False
+            logger.error("KiteTicker: could not restart — system stopped")
 
     def on_error(ws, code, reason) -> None:
-        logger.error(f"KiteTicker error: code={code} reason={reason}")
+        logger.error(f"KiteTicker error {code}: {reason}")
+        # Error 1006 = server dropped TCP without WebSocket close handshake.
+        # KiteTicker's built-in reconnect will handle it automatically.
+        # No manual action needed — just log and let reconnect loop run.
 
     def on_close(ws, code, reason) -> None:
-        logger.warning(f"KiteTicker closed: code={code} reason={reason}")
+        logger.warning(f"KiteTicker closed: code={code}  reason={reason}")
         state["connected"] = False
+        # If the system is still meant to be running (e.g. Zerodha server-side
+        # 1006 drop during market hours), schedule a clean restart after 3 s.
+        if state["running"] and code == 1006 and config.ZERODHA_ACCESS_TOKEN:
+            logger.info("KiteTicker: scheduling restart in 3 s after 1006 close …")
+            import threading as _t
+            _t.Timer(3.0, _start_ticker,
+                     args=(config.ZERODHA_API_KEY,
+                           config.ZERODHA_ACCESS_TOKEN)).start()
 
     def on_order_update(ws, data) -> None:
         logger.info(f"Order update: {data}")
@@ -414,11 +462,9 @@ def _start_ticker(api_key: str, access_token: str) -> None:
     with _ticker_lock:
         _ticker = ticker
 
-    # Run KiteTicker in its own daemon thread — it has its own event loop
     ticker.connect(threaded=True)
     logger.info(
-        f"KiteTicker started — subscribed to "
-        f"NIFTY (token={tokens[0]}) BANKNIFTY (token={tokens[1]})"
+        f"KiteTicker started — tokens: NIFTY={tokens[0]} BANKNIFTY={tokens[1]}"
     )
 
 
@@ -583,8 +629,9 @@ def zerodha_callback():
         config.ZERODHA_ACCESS_TOKEN = token
         state["connected"] = True
         logger.info("Zerodha OAuth login successful ✓")
-        # [Change 1] Pre-connect ticker so it is ready when user clicks Start
-        _start_ticker(config.ZERODHA_API_KEY, token)
+        # Ticker is NOT started here — it starts only when user clicks Start.
+        # Starting at login time causes error 1006 because the WebSocket
+        # connects before market hours and Zerodha drops idle connections.
         return redirect(url_for("index"))
     logger.error(
         "Zerodha OAuth callback received but session generation failed.\n"
@@ -624,8 +671,7 @@ def api_set_token():
     state["connected"] = zerodha_feed.is_connected()
     if state["connected"]:
         logger.info("Zerodha: manual token accepted ✓")
-        # [Change 1] Pre-connect ticker ready for Start
-        _start_ticker(key, token)
+        # Ticker starts only on api_start — not here.
         return jsonify({"status": "connected"})
     return jsonify({"status": "failed",
                     "message": "Token rejected — regenerate from kite.zerodha.com"}), 400
