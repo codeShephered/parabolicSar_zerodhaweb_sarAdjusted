@@ -247,6 +247,7 @@ def _process(instrument: str, price: float) -> None:
         return
 
     # Reject if direction opposes trend (no volume gate — shape + SAR only)
+'''
     if direction == "bullish" and below > _bull:
         logger.debug(f"{instrument}: {pattern} bullish blocked — {below:.1f}% below SMA20")
         state["signals"][instrument] = {"type": "none"}
@@ -255,7 +256,60 @@ def _process(instrument: str, price: float) -> None:
         logger.debug(f"{instrument}: {pattern} bearish blocked — {above:.1f}% above SMA20")
         state["signals"][instrument] = {"type": "none"}
         return
+'''
+    # SMA20 trend filter — bypass when SAR reverses on THIS candle.
+    #
+    # WHY THE BYPASS IS NECESSARY:
+    #   At a downtrend reversal bottom (e.g. chart 12:20 candle), price is
+    #   legitimately below SMA20 — the moving average still reflects all the
+    #   higher prices from before the drop. Applying the filter here blocks
+    #   the entry at exactly the best moment, then forces the system to wait
+    #   until SMA20 catches up (can take 15-90 minutes in a sharp move),
+    #   by which point 40-50% of the bullish trend move is already spent.
+    #
+    # WHEN THE BYPASS IS SAFE:
+    #   sar_reversed=True means SAR flipped direction on THIS candle close —
+    #   the highest-confidence reversal signal. Combined with a matching
+    #   pattern (both gates must pass), this is a dual confirmation that
+    #   outweighs the lagging SMA20. The SMA20 filter is designed to reject
+    #   CE entries during established downtrends, not at their exact end point.
+    #
+    # WHEN THE FILTER STILL APPLIES (unchanged behaviour):
+    #   For all continuation entries (sar_reversed=False), the SMA20 filter
+    #   applies in full — preventing CE entries when price drifts below SMA20
+    #   in a sideways or weakening trend. This is the correct use case.
 
+    if direction == "bullish":
+        if not sar_reversed and below > _bull:
+            # Continuation CE blocked — price below SMA20 in non-reversal candle
+            logger.debug(
+                f"{instrument}: {pattern} CE blocked — "
+                f"{below:.2f}% below SMA20 (no SAR reversal this candle)"
+            )
+            state["signals"][instrument] = {"type": "none"}
+            return
+        elif sar_reversed and below > _bull:
+            # Bypass: SAR just flipped + pattern both confirm reversal bottom
+            logger.info(
+                f"{instrument}: {pattern} SMA20 filter bypassed — "
+                f"SAR reversed this candle ({below:.2f}% below SMA20 expected at reversal bottom)"
+            )
+
+    if direction == "bearish":
+        if not sar_reversed and above > _bear:
+            # Continuation PE blocked — price above SMA20 in non-reversal candle
+            logger.debug(
+                f"{instrument}: {pattern} PE blocked — "
+                f"{above:.2f}% above SMA20 (no SAR reversal this candle)"
+            )
+            state["signals"][instrument] = {"type": "none"}
+            return
+        elif sar_reversed and above > _bear:
+            # Bypass: SAR just flipped + pattern both confirm reversal top
+            logger.info(
+                f"{instrument}: {pattern} SMA20 filter bypassed — "
+                f"SAR reversed this candle ({above:.2f}% above SMA20 expected at reversal top)"
+            )
     # SAR direction gate — SAR must agree with the pattern signal
   '''
     if direction == "bullish" and not sar_bull:
