@@ -238,9 +238,17 @@ def _process(instrument: str, price: float) -> None:
     #   Old: TREND_FILTER_PCT = 0.5  (symmetric)
     #   New: TREND_FILTER_BULLISH_PCT / TREND_FILTER_BEARISH_PCT (asymmetric)
     _sym   = getattr(config, "TREND_FILTER_PCT",         0.5)
+  '''
     _bull  = getattr(config, "TREND_FILTER_BULLISH_PCT", _sym)
     _bear  = getattr(config, "TREND_FILTER_BEARISH_PCT", _sym)
-
+'''
+    icfg   = config.INSTRUMENTS[instrument]
+    _bull  = icfg.get("trend_filter_bull",
+                 getattr(config, "TREND_FILTER_BULLISH_PCT",
+                 getattr(config, "TREND_FILTER_PCT", 0.5)))
+    _bear  = icfg.get("trend_filter_bear",
+                 getattr(config, "TREND_FILTER_BEARISH_PCT",
+                 getattr(config, "TREND_FILTER_PCT", 0.5)))
     pattern, direction = pattern_engine.scan(last3)
     if not pattern:
         state["signals"][instrument] = {"type": "none"}
