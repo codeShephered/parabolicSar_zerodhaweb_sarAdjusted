@@ -30,6 +30,8 @@ SQUARE_OFF_MINUTE     = 15
 # ── Instruments ───────────────────────────────────────────────────────────────
 INSTRUMENTS = {
     "NIFTY": {
+        "trend_filter_bull": 0.5,   # 0.5% of 24500 = 122pts — appropriate for NIFTY
+        "trend_filter_bear": 0.5,
         "zerodha_symbol":  "NSE:NIFTY 50",
         "lot_size":        65,
         "strike_interval": 50,
@@ -42,6 +44,8 @@ INSTRUMENTS = {
         "profit_threshold": 50.0,     # ← NEW: minimum profit to exit on reversal
     },
     "BANKNIFTY": {
+        "trend_filter_bull": 1.0,   # 1.0% of 55000 = 550pts — covers BANKNIFTY ADR
+        "trend_filter_bear": 1.0,
         "zerodha_symbol":  "NSE:NIFTY BANK",
         "lot_size":        30,
         "strike_interval": 100,
