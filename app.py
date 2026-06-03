@@ -257,6 +257,7 @@ def _process(instrument: str, price: float) -> None:
         return
 
     # SAR direction gate — SAR must agree with the pattern signal
+  '''
     if direction == "bullish" and not sar_bull:
         logger.debug(f"{instrument}: {pattern} bullish blocked — SAR is bearish")
         state["signals"][instrument] = {"type": "none"}
@@ -265,6 +266,56 @@ def _process(instrument: str, price: float) -> None:
         logger.debug(f"{instrument}: {pattern} bearish blocked — SAR is bullish")
         state["signals"][instrument] = {"type": "none"}
         return
+        '''
+    # ── Pattern-SAR alignment (CORRECTED for REVERSAL patterns) ──────────────
+    #
+    # REVERSAL PATTERNS (allowed OPPOSITE to SAR):
+    #   • Morning Doji Star, Three White Soldiers, Morning Star, Bullish Engulfing, Piercing Line
+    #     → Enter BULLISH even if SAR is bearish (bullish reversal at bottom of downtrend)
+    #   • Evening Doji Star, Three Black Crows, Evening Star, Bearish Engulfing, Dark Cloud Cover
+    #     → Enter BEARISH even if SAR is bullish (bearish reversal at top of uptrend)
+    #
+    # NON-REVERSAL PATTERNS (require SAR agreement):
+    #   • Hammer (1-candle bullish) → requires sar_bull
+    #   • Shooting Star (1-candle bearish) → requires not sar_bull
+    #
+    # Rationale: Reversals form AGAINST the trend. Hammer/Shooting Star form WITH the trend.
+ 
+    REVERSAL_PATTERNS = {
+        "Morning Doji Star", "Three White Soldiers", "Morning Star",
+        "Bullish Engulfing",
+        "Evening Doji Star", "Three Black Crows", "Evening Star",
+        "Bearish Engulfing"
+    }
+ 
+    is_reversal_pattern = pattern in REVERSAL_PATTERNS
+    
+    if not is_reversal_pattern:
+        # Non-reversal patterns (Hammer, Shooting Star) require SAR agreement
+        if direction == "bullish" and not sar_bull:
+            logger.debug(
+                f"{instrument}: {pattern} bullish requires SAR bullish "
+                f"(not reversal) — blocked"
+            )
+            state["signals"][instrument] = {"type": "none"}
+            return
+        if direction == "bearish" and sar_bull:
+            logger.debug(
+                f"{instrument}: {pattern} bearish requires SAR bearish "
+                f"(not reversal) — blocked"
+            )
+            state["signals"][instrument] = {"type": "none"}
+            return
+    else:
+        # Reversal patterns: allowed OPPOSITE to SAR, log the reversal nature
+        if direction == "bullish" and not sar_bull:
+            logger.debug(
+                f"{instrument}: {pattern} (REVERSAL) — bullish signal despite SAR bearish ✓"
+            )
+        elif direction == "bearish" and sar_bull:
+            logger.debug(
+                f"{instrument}: {pattern} (REVERSAL) — bearish signal despite SAR bullish ✓"
+            )
 
     # ── [Change 2] SAR position guard (strict price-level check) ─────────────
     # This is a second, independent guard that checks the ACTUAL SAR VALUE
