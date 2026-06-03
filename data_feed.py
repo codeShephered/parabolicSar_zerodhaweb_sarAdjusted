@@ -28,7 +28,7 @@ _MONTH_NAME = {1:"JAN",2:"FEB",3:"MAR",4:"APR",5:"MAY",6:"JUN",
 
 
 # ── Expiry helpers ─────────────────────────────────────────────────────────────
-
+'''
 def _last_weekday_of_month(year: int, month: int, weekday: int) -> date:
     """Last occurrence of `weekday` (0=Mon … 6=Sun) in the given month."""
     if month == 12:
@@ -64,7 +64,67 @@ def get_banknifty_expiry() -> date:
         else:
             exp = _last_weekday_of_month(today.year, today.month + 1, 2)
     return exp
+'''
+# NSE trading holidays — Tuesday expiries that fall on these dates
+# must use the preceding Monday instead.
+# Add future holiday dates here as NSE announces them.
+_NSE_HOLIDAYS: frozenset[date] = frozenset({
+    date(2026, 10, 20),   # Tuesday — Diwali Laxmi Puja
+    date(2026, 11, 10),   # Tuesday — Gurunanak Jayanti
+    date(2026, 11, 24),   # Tuesday — add/remove as NSE calendar changes
+})
 
+
+def _adjust_for_holiday(expiry: date) -> date:
+    """
+    If the computed expiry Tuesday is an NSE holiday,
+    return the preceding Monday instead.
+    Keeps stepping back by one day until a non-holiday weekday is found
+    (handles the rare case where Monday is also a holiday).
+    """
+    while expiry in _NSE_HOLIDAYS:
+        expiry -= timedelta(days=1)   # step back to Monday (or earlier if needed)
+    return expiry
+
+
+def _last_weekday_of_month(year: int, month: int, weekday: int) -> date:
+    """Last occurrence of `weekday` (0=Mon … 6=Sun) in the given month."""
+    if month == 12:
+        last = date(year + 1, 1, 1) - timedelta(days=1)
+    else:
+        last = date(year, month + 1, 1) - timedelta(days=1)
+    offset = (last.weekday() - weekday) % 7
+    return last - timedelta(days=offset)
+
+
+def get_nifty_expiry() -> date:
+    """
+    Current NIFTY weekly expiry (Tuesday).
+    If today IS Tuesday (expiry day itself), use next Tuesday.
+    If the Tuesday is an NSE holiday, use the preceding Monday.
+    """
+    today = date.today()
+    delta = (1 - today.weekday()) % 7   # 1 = Tuesday
+    if delta == 0:
+        delta = 7                        # today is Tuesday → jump to next week
+    expiry = today + timedelta(days=delta)
+    return _adjust_for_holiday(expiry)
+
+
+def get_banknifty_expiry() -> date:
+    """
+    BANKNIFTY monthly expiry = last Tuesday of the current month.
+    If today is past that date, use next month's last Tuesday.
+    If that Tuesday is an NSE holiday, use the preceding Monday.
+    """
+    today = date.today()
+    exp   = _last_weekday_of_month(today.year, today.month, 1)   # 1 = Tuesday
+    if today >= exp:
+        if today.month == 12:
+            exp = _last_weekday_of_month(today.year + 1, 1, 1)
+        else:
+            exp = _last_weekday_of_month(today.year, today.month + 1, 1)
+    return _adjust_for_holiday(exp)
 
 def build_symbol(instrument: str, expiry: date,
                  strike: float, option_type: str) -> str:
