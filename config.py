@@ -77,6 +77,10 @@ SMA_PERIOD        = 20
 #changes on 24-May-2026
 TREND_FILTER_BULLISH_PCT = 0.5 # block bullish if price > 0.5% below SMA20
 TREND_FILTER_BEARISH_PCT = 1.0 
+TREND_FILTER_NIFTY_BULL     = 0.5   # CE entry: max % price can be below SMA20
+TREND_FILTER_NIFTY_BEAR     = 0.5   # PE entry: max % price can be above SMA20
+TREND_FILTER_BANKNIFTY_BULL = 1.0   # wider because BANKNIFTY ADR is ~500pts
+TREND_FILTER_BANKNIFTY_BEAR = 1.0
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 LOG_FILE        = "trading.log"
